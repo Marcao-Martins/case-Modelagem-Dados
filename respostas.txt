@@ -1,1 +1,3 @@
-1 - A loja Super Baratão teve 1448 pedidos únicos no mês de Dezembro.
+A loja Super Baratão teve 1448 pedidos únicos no mês de Dezembro.
+O mês com a maior taxa de rejeição da loja Mercado Marisol foi 11 com uma taxa de rejeição de 8.85%
+O número de usuários que fizeram pedidos na loja Mercado Preço Baixo no mês de Dezembro foi: 1010
