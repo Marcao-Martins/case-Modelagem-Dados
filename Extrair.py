@@ -1,70 +1,100 @@
 import sqlite3
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 conn = sqlite3.connect('database.db')
 
-
-# criando um cursor
 cursor = conn.cursor()
 
-# executando a consulta
 cursor.execute("SELECT COUNT(DISTINCT Order_Number) FROM tabela WHERE strftime('%m', Date) = '12' AND Store_Name = 'Super Baratão'")
 
-# recuperando o resultado
 resultado = cursor.fetchone()[0]
 
-# exibindo o resultado
 print(f"A loja Super Baratão teve {resultado} pedidos únicos no mês de Dezembro.")
 
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------#
-
-
-cursor = conn.execute("""
-    SELECT strftime('%m', Date) as Month, 
-           AVG(CASE WHEN Orden_revisada = 'No' OR Orden_aprobada = 'No' THEN 1 ELSE 0 END) as Rejection_Rate
-    FROM tabela
-    WHERE Store_Name = 'Mercado Marisol'
-    GROUP BY Month
-    ORDER BY Rejection_Rate DESC
-    LIMIT 1;
+cursor.execute("""
+SELECT strftime('%m', Date) as Month,
+AVG(CASE WHEN Orden_revisada = 'No' OR Orden_aprobada = 'No' THEN 1 ELSE 0 END) as Rejection_Rate
+FROM tabela
+WHERE Store_Name = 'Mercado Marisol'
+GROUP BY Month
+ORDER BY Rejection_Rate DESC
+LIMIT 1;
 """)
 
-# Obtendo o resultado da consulta
 result = cursor.fetchone()
 
-# Exibindo o resultado
 print(f"O mês com a maior taxa de rejeição da loja Mercado Marisol foi {result[0]} com uma taxa de rejeição de {result[1]*100:.2f}%")
-
-
-#----------------------------------------------------------------------------------------------------------------------------------------------------#
-
 
 cursor.execute("SELECT COUNT(DISTINCT id) FROM tabela WHERE store_name = 'Mercado Preço Baixo' AND strftime('%Y-%m', Date) = '2022-12'")
 
-# obtém o resultado da consulta
 resultado = cursor.fetchone()[0]
 
-# exibe o resultado
 print("O número de usuários que fizeram pedidos na loja Mercado Preço Baixo no mês de Dezembro foi:", resultado)
 
+cursor.execute("""
+SELECT
+Store_Name,
+strftime('%Y', Date) as Ano,
+COUNT(*) as TotalPedidos
+FROM
+tabela
+WHERE
+strftime('%Y', Date) IN ('2022', '2023')
+GROUP BY
+Store_Name,
+Ano;
+""")
 
+resultados = cursor.fetchall()
 
+totais_lojas = {}
 
-#----------------------------------------------------------------------------------------------------------------------------------------------------#
+for linha in resultados:
+    store_name, ano, total_pedidos = linha
+    if store_name not in totais_lojas:
+        totais_lojas[store_name] = {}
+    totais_lojas[store_name][ano] = total_pedidos
 
-cursor.execute("SELECT Brand_Name, strftime('%Y', Date) as Ano, COUNT(*) as TotalPedidos FROM tabela WHERE strftime('%Y', Date) IN ('2022', '2023') GROUP BY Brand_Name, Ano")
+df = pd.DataFrame.from_dict(totais_lojas, orient='index')
 
-# Obter os resultados e separar em duas listas (uma para cada ano)
-resultados_2022 = []
-resultados_2023 = []
-for linha in cursor.fetchall():
-    loja, ano, total_pedidos = linha
-    if ano == '2022':
-        resultados_2022.append((loja, total_pedidos))
-    else:
-        resultados_2023.append((loja, total_pedidos))
+df = df.stack().reset_index().rename(columns={'level_0': 'Store_Name', 'level_1': 'Year', 0: 'TotalPedidos'})
 
+sns.catplot(x='Store_Name', y='TotalPedidos', hue='Year', data=df, kind='bar', height=6, aspect=2)
+
+plt.savefig('grafico.png', dpi=300, bbox_inches='tight')
+
+cursor.execute("""
+SELECT
+Store_Name,
+strftime('%Y', Date) as Ano,
+COUNT(DISTINCT Order_Number) as TotalPedidos
+FROM
+tabela
+WHERE
+strftime('%Y', Date) IN ('2022', '2023')
+GROUP BY
+Store_Name,
+Ano;
+""")
+
+resultados = cursor.fetchall()
+
+totais_lojas = {}
+
+for linha in resultados:
+    store_name, ano, total_pedidos = linha
+    if store_name not in totais_lojas:
+        totais_lojas[store_name] = {}
+    totais_lojas[store_name][ano] = total_pedidos
+
+df = pd.DataFrame.from_dict(totais_lojas, orient='index')
+
+df['Variacao'] = (df['2023'] / df['2022'] - 1) * 100
+
+print(df)
 
 conn.commit()
 
-# fechar a conexão com o banco de dados
 conn.close()
